@@ -1,2 +1,25 @@
 <!doctype html>
-<html><head><title>LinkedIn Archive</title></head><body><div id="app"></div><script type="module" src="./main.ts"></script></body></html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>LinkedIn Archive</title>
+    <link rel="stylesheet" href="./viewer.css" />
+  </head>
+  <body>
+    <aside class="sidebar">
+      <h1>Archive</h1>
+      <input id="search" type="search" placeholder="Search…" autocomplete="off" />
+      <div id="tags" class="tags"></div>
+      <div class="spacer"></div>
+      <div class="io">
+        <button id="export" type="button">Export JSON</button>
+        <button id="import-btn" type="button">Import JSON</button>
+        <input id="import" type="file" accept="application/json" hidden />
+      </div>
+      <p id="io-status" class="status"></p>
+    </aside>
+    <main class="list" id="list"></main>
+    <section class="detail" id="detail"></section>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
