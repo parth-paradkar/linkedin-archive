@@ -1,6 +1,6 @@
 import './viewer.css';
 import type { Profile } from '../lib/types';
-import { allProfiles, deleteProfile, putProfile } from '../lib/storage';
+import { allProfiles, deleteProfile, importProfiles, putProfile } from '../lib/storage';
 import { allTags, filterProfiles, parseTagInput } from '../lib/filter';
 import { renderDetail, renderList, renderTagFilter } from './render';
 
@@ -111,6 +111,45 @@ window.addEventListener('beforeunload', () => {
   const p = state.profiles.find((x) => x.slug === state.selected);
   const note = document.getElementById('note') as HTMLTextAreaElement | null;
   if (p && note) void putProfile({ ...p, note: note.value, updatedAt: new Date().toISOString() });
+});
+
+const io = {
+  exportBtn: $<HTMLButtonElement>('export'),
+  importBtn: $<HTMLButtonElement>('import-btn'),
+  file: $<HTMLInputElement>('import'),
+  status: $('io-status'),
+};
+
+io.exportBtn.addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify(state.profiles, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = Object.assign(document.createElement('a'), {
+    href: url,
+    download: `linkedin-archive-${new Date().toISOString().slice(0, 10)}.json`,
+  });
+  a.click();
+  URL.revokeObjectURL(url);
+  io.status.textContent = `Exported ${state.profiles.length} profiles.`;
+});
+
+io.importBtn.addEventListener('click', () => io.file.click());
+
+io.file.addEventListener('change', async () => {
+  const file = io.file.files?.[0];
+  if (!file) return;
+  io.status.textContent = 'Importing…';
+  try {
+    const parsed: unknown = JSON.parse(await file.text());
+    if (!Array.isArray(parsed)) throw new Error('expected a JSON array of profiles');
+    const { added, updated, skipped } = await importProfiles(parsed);
+    await reload();
+    io.status.textContent = `Added ${added}, updated ${updated}, skipped ${skipped}.`;
+  } catch (e) {
+    io.status.textContent = `Import failed: ${e instanceof Error ? e.message : String(e)}`;
+  } finally {
+    // Reset so re-picking the same file fires `change` again.
+    io.file.value = '';
+  }
 });
 
 // The background worker opens the viewer at #<slug> to focus one record.
