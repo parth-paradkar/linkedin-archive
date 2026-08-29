@@ -122,9 +122,45 @@ describe('storage round trip', () => {
 
   it('saveScraped merges over an existing record', async () => {
     await putProfile(profile({ note: 'keep me' }));
-    const saved = await saveScraped(scraped({ company: 'NewCo' }));
+    const { profile: saved, changed } = await saveScraped(scraped({ company: 'NewCo' }));
     expect(saved.note).toBe('keep me');
     expect(saved.company).toBe('NewCo');
+    expect(changed).toBe(true);
+  });
+
+  it('reports a first save as changed', async () => {
+    const { changed } = await saveScraped(scraped());
+    expect(changed).toBe(true);
+  });
+
+  it('does not rewrite or bump updatedAt when nothing scraped has changed', async () => {
+    await putProfile(profile({ updatedAt: '2026-01-01T00:00:00.000Z' }));
+    const { profile: saved, changed } = await saveScraped(scraped());
+    expect(changed).toBe(false);
+    // updatedAt drives import conflict resolution, so a revisit must not touch it.
+    expect(saved.updatedAt).toBe('2026-01-01T00:00:00.000Z');
+  });
+
+  it('treats a field that went missing as no change, not a wipe', async () => {
+    await putProfile(profile({ headline: 'Staff Engineer', about: 'Systems.' }));
+    // About is lazy-rendered, so a revisit often scrapes it empty.
+    const { profile: saved, changed } = await saveScraped(scraped({ about: '' }));
+    expect(changed).toBe(false);
+    expect(saved.about).toBe('Systems.');
+  });
+
+  it('detects a real change to any scraped field', async () => {
+    await putProfile(profile());
+    expect((await saveScraped(scraped({ headline: 'Founder' }))).changed).toBe(true);
+    expect((await getProfile('jane'))?.headline).toBe('Founder');
+  });
+
+  it('leaves notes and tags alone when refreshing', async () => {
+    await putProfile(profile({ note: 'met at conf', tags: ['founders'] }));
+    const { profile: saved } = await saveScraped(scraped({ company: 'NewCo', location: 'Lisbon' }));
+    expect(saved.note).toBe('met at conf');
+    expect(saved.tags).toEqual(['founders']);
+    expect(saved.savedAt).toBe('2026-01-01T00:00:00.000Z');
   });
 
   it('deletes', async () => {

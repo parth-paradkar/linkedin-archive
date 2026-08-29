@@ -7,7 +7,7 @@ export type Msg =
 
 export type Res = {
   isSaved: { saved: boolean };
-  saveProfile: { profile: Profile };
+  saveProfile: { profile: Profile; changed: boolean };
   openViewer: { ok: true };
 };
 

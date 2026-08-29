@@ -51,10 +51,29 @@ export async function putProfile(p: Profile): Promise<void> {
   await chrome.storage.local.set({ [key(p.slug)]: p });
 }
 
-export async function saveScraped(s: ScrapedProfile): Promise<Profile> {
-  const merged = mergeProfile(await getProfile(s.slug), s, new Date().toISOString());
+/**
+ * Would this scrape actually alter the stored record? Compares against the
+ * merge result, so a field that scraped empty counts as unchanged rather than
+ * as a wipe — LinkedIn lazy-renders parts of the page.
+ */
+export function hasScrapeChanges(existing: Profile, s: ScrapedProfile): boolean {
+  const merged = mergeProfile(existing, s, existing.updatedAt);
+  return (Object.keys(s) as (keyof ScrapedProfile)[]).some((k) => merged[k] !== existing[k]);
+}
+
+/**
+ * Store a scrape, preserving notes and tags. A scrape identical to what is
+ * already stored writes nothing: revisiting a profile must not bump
+ * `updatedAt`, which is what import merges use to pick a winner.
+ */
+export async function saveScraped(
+  s: ScrapedProfile,
+): Promise<{ profile: Profile; changed: boolean }> {
+  const existing = await getProfile(s.slug);
+  if (existing && !hasScrapeChanges(existing, s)) return { profile: existing, changed: false };
+  const merged = mergeProfile(existing, s, new Date().toISOString());
   await putProfile(merged);
-  return merged;
+  return { profile: merged, changed: true };
 }
 
 export async function deleteProfile(slug: string): Promise<void> {

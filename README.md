@@ -14,6 +14,7 @@ Then open `chrome://extensions`, enable Developer mode, click "Load unpacked", a
 ## Use
 
 - On any `linkedin.com/in/...` page, click the pill in the bottom-right to save the profile. It turns green once saved.
+- Revisiting a profile you already saved refreshes it automatically — headline, company, location, photo, About. Your notes and tags are never touched, and the pill flashes "Updated ✓" only when something actually changed. Profiles you have not saved are never saved automatically; that stays a deliberate click.
 - Click the toolbar icon to open the archive: search, filter by tag, and edit notes.
 - Export JSON regularly. It is the only backup.
 

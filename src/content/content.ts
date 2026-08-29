@@ -16,6 +16,19 @@ const STYLE = `
 .lia-pill[disabled] { opacity: 0.7; cursor: default; }
 `;
 
+const SAVE_LABEL = 'Save to Archive';
+const SAVED_LABEL = 'Saved ✓ · Open note';
+const UPDATED_LABEL = 'Updated ✓';
+
+/**
+ * LinkedIn renders the top card after this script runs, and how long that takes
+ * varies with connection and cache. So a revisit polls until the scrape yields
+ * something rather than sleeping for a guessed interval.
+ */
+const POLL_MS = 250;
+const RENDER_TIMEOUT_MS = 8000;
+const FLASH_MS = 2000;
+
 let host: HTMLElement | null = null;
 let button: HTMLButtonElement | null = null;
 
@@ -55,9 +68,49 @@ async function onClick() {
     const scraped = parseProfile(document, location.href);
     if (!scraped) throw new Error('not a profile page');
     await send({ type: 'saveProfile', scraped });
-    setState('saved', 'Saved ✓ · Open note');
+    setState('saved', SAVED_LABEL);
   } catch (e) {
     setState('error', 'Save failed — retry');
+    console.error('[LinkedIn Archive]', e);
+  }
+}
+
+/** Still looking at the profile this run started on? */
+const stillOn = (slug: string) => slugFromUrl(location.href) === slug;
+
+/**
+ * Poll until the top card has rendered enough to be worth storing. Returns the
+ * last scrape on timeout — an empty one is harmless, since an unchanged scrape
+ * writes nothing. Returns null if the user navigated away.
+ */
+async function waitForRender(slug: string) {
+  const deadline = Date.now() + RENDER_TIMEOUT_MS;
+  for (;;) {
+    if (!stillOn(slug)) return null;
+    const scraped = parseProfile(document, location.href);
+    if (scraped && (scraped.headline || scraped.company || scraped.location)) return scraped;
+    if (Date.now() >= deadline) return scraped;
+    await new Promise((r) => setTimeout(r, POLL_MS));
+  }
+}
+
+/**
+ * Re-scrape a profile we already hold and store anything that moved. Notes and
+ * tags are untouched, and an unchanged scrape writes nothing at all. Never
+ * saves a profile that was not already saved — that stays a deliberate click.
+ */
+async function autoUpdate(slug: string) {
+  try {
+    const scraped = await waitForRender(slug);
+    if (!scraped) return;
+    const { changed } = await send({ type: 'saveProfile', scraped });
+    if (!changed || !stillOn(slug)) return;
+    setState('saved', UPDATED_LABEL);
+    setTimeout(() => {
+      if (stillOn(slug)) setState('saved', SAVED_LABEL);
+    }, FLASH_MS);
+  } catch (e) {
+    // A refresh failing is not worth disturbing the pill over.
     console.error('[LinkedIn Archive]', e);
   }
 }
@@ -72,7 +125,8 @@ async function refresh() {
   }
   try {
     const { saved } = await send({ type: 'isSaved', slug });
-    setState(saved ? 'saved' : 'save', saved ? 'Saved ✓ · Open note' : 'Save to Archive');
+    setState(saved ? 'saved' : 'save', saved ? SAVED_LABEL : SAVE_LABEL);
+    if (saved) void autoUpdate(slug);
   } catch (e) {
     console.error('[LinkedIn Archive]', e);
   }

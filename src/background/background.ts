@@ -17,7 +17,7 @@ async function handle(msg: Msg): Promise<Res[Msg['type']]> {
     case 'isSaved':
       return { saved: (await getProfile(msg.slug)) !== undefined };
     case 'saveProfile':
-      return { profile: await saveScraped(msg.scraped) };
+      return await saveScraped(msg.scraped);
     case 'openViewer':
       await openViewer(msg.slug);
       return { ok: true };
