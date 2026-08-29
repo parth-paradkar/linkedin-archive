@@ -79,17 +79,37 @@ let noteTimer: ReturnType<typeof setTimeout> | undefined;
 const selected = (): Profile | undefined => state.profiles.find((x) => x.slug === state.selected);
 
 /**
- * Add tags, then redraw so the chips and the sidebar counts update. Redrawing
- * replaces the input, so put the half-typed remainder back and restore focus —
- * but only when the commit came from typing, never from clicking away.
+ * True while a tag edit is redrawing the panel. Replacing the input blurs it,
+ * and the browser fires that focusout *before* detaching the node — so the
+ * focusout handler still sees the old element holding text we already
+ * committed. Without this guard it commits that text a second time and kicks
+ * off another redraw, which is what steals the caret mid-typing.
  */
-async function addTags(add: string[], rest: string, refocus: boolean): Promise<void> {
-  await edit((p) => (p.tags = [...new Set([...p.tags, ...add])]), true);
+let committingTags = false;
+
+/**
+ * Rewrite the tag list, redraw so chips and sidebar counts update, then put
+ * any half-typed remainder back in the fresh input.
+ */
+async function setTags(
+  next: (p: Profile) => string[],
+  rest: string,
+  refocus: boolean,
+): Promise<void> {
+  committingTags = true;
+  try {
+    await edit((p) => (p.tags = next(p)), true);
+  } finally {
+    committingTags = false;
+  }
   const input = document.getElementById('tag-new') as HTMLInputElement | null;
   if (!input) return;
   input.value = rest;
   if (refocus) input.focus();
 }
+
+const addTags = (add: string[], rest: string, refocus: boolean) =>
+  setTags((p) => [...new Set([...p.tags, ...add])], rest, refocus);
 
 els.detail.addEventListener('input', (e) => {
   const t = e.target as HTMLElement;
@@ -126,7 +146,7 @@ els.detail.addEventListener('keydown', (e) => {
 // Committing on the way out, so a typed-but-uncommitted tag is not silently lost.
 els.detail.addEventListener('focusout', (e) => {
   const t = e.target as HTMLElement;
-  if (t.id !== 'tag-new') return;
+  if (t.id !== 'tag-new' || committingTags) return;
   const tags = parseTagInput((t as HTMLInputElement).value);
   if (tags.length) void addTags(tags, '', false);
 });
@@ -134,7 +154,9 @@ els.detail.addEventListener('focusout', (e) => {
 els.detail.addEventListener('click', (e) => {
   const remove = (e.target as HTMLElement).closest<HTMLElement>('[data-remove]')?.dataset.remove;
   if (remove !== undefined) {
-    void edit((p) => (p.tags = p.tags.filter((t) => t !== remove)), true);
+    // Keep whatever is half-typed; removing a chip should not discard it.
+    const pending = (document.getElementById('tag-new') as HTMLInputElement | null)?.value ?? '';
+    void setTags((p) => p.tags.filter((t) => t !== remove), pending, true);
     return;
   }
   if ((e.target as HTMLElement).id !== 'delete') return;
