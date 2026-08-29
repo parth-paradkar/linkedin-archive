@@ -12,6 +12,30 @@ function el<K extends keyof HTMLElementTagNameMap>(
   return node;
 }
 
+/** Up to two leading characters, e.g. "Ada Grace Byron" -> "AG". */
+const initials = (label: string): string =>
+  label
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((w) => [...w][0] ?? '')
+    .join('')
+    .toUpperCase();
+
+/**
+ * A photo when we have one, initials when we don't. LinkedIn CDN URLs expire,
+ * so a stored photo can start 404ing long after it was saved — the error
+ * handler covers that as well as profiles that never had a picture.
+ */
+function avatar(p: Profile): HTMLElement {
+  const fallback = () =>
+    el('span', { className: 'avatar', textContent: initials(p.name || p.slug) });
+  if (!p.photoUrl) return fallback();
+  const img = el('img', { className: 'avatar', src: p.photoUrl, alt: '' });
+  img.addEventListener('error', () => img.replaceWith(fallback()), { once: true });
+  return img;
+}
+
 export function renderTagFilter(
   tags: { tag: string; count: number }[],
   selected: string[],
@@ -38,7 +62,7 @@ export function renderList(profiles: Profile[], selectedSlug: string | null): Do
   for (const p of profiles) {
     const sub = [p.headline || p.role, p.company].filter(Boolean).join(' · ');
     const row = el('button', { className: 'row', type: 'button' }, [
-      el('img', { src: p.photoUrl, alt: '' }),
+      avatar(p),
       el('span', { className: 'meta' }, [
         el('div', { className: 'name', textContent: p.name }),
         el('div', { className: 'sub', textContent: sub }),
@@ -58,7 +82,7 @@ export function renderDetail(p: Profile | null): DocumentFragment {
     return f;
   }
   f.append(
-    el('img', { src: p.photoUrl, alt: '' }),
+    avatar(p),
     el('h2', { textContent: p.name }),
     el('p', { className: 'muted', textContent: p.headline }),
     el('p', {

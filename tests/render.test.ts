@@ -47,6 +47,49 @@ describe('renderList', () => {
   });
 });
 
+describe('avatar fallback', () => {
+  it('renders an image when there is a photo', () => {
+    const d = mount(renderList([p()], null));
+    expect(d.querySelector('img.avatar')).not.toBeNull();
+    expect(d.querySelector('span.avatar')).toBeNull();
+  });
+
+  it('renders initials instead of a broken image when there is no photo', () => {
+    const d = mount(renderList([p({ photoUrl: '' })], null));
+    expect(d.querySelector('img')).toBeNull();
+    expect(d.querySelector('span.avatar')?.textContent).toBe('JD');
+  });
+
+  it('uses one initial for a single-word name', () => {
+    const d = mount(renderList([p({ photoUrl: '', name: 'Cher' })], null));
+    expect(d.querySelector('span.avatar')?.textContent).toBe('C');
+  });
+
+  it('takes only the first two words of a long name', () => {
+    const d = mount(renderList([p({ photoUrl: '', name: 'Ada Grace Byron King' })], null));
+    expect(d.querySelector('span.avatar')?.textContent).toBe('AG');
+  });
+
+  it('falls back to the slug when the name is empty', () => {
+    const d = mount(renderList([p({ photoUrl: '', name: '', slug: 'ghost' })], null));
+    expect(d.querySelector('span.avatar')?.textContent).toBe('G');
+  });
+
+  it('swaps in initials when the photo fails to load', () => {
+    const d = mount(renderList([p()], null));
+    const img = d.querySelector<HTMLImageElement>('img.avatar')!;
+    img.dispatchEvent(new Event('error'));
+    expect(d.querySelector('img')).toBeNull();
+    expect(d.querySelector('span.avatar')?.textContent).toBe('JD');
+  });
+
+  it('applies the same fallback in the detail panel', () => {
+    const d = mount(renderDetail(p({ photoUrl: '' })));
+    expect(d.querySelector('img')).toBeNull();
+    expect(d.querySelector('span.avatar')?.textContent).toBe('JD');
+  });
+});
+
 describe('renderTagFilter', () => {
   it('marks selected tags as pressed', () => {
     const d = mount(
