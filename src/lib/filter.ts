@@ -15,6 +15,10 @@ export function filterProfiles(profiles: Profile[], query: string, tags: string[
   });
 }
 
+export function parseTagInput(raw: string): string[] {
+  return [...new Set(raw.split(',').map((t) => t.trim().toLowerCase()).filter(Boolean))];
+}
+
 export function allTags(profiles: Profile[]): { tag: string; count: number }[] {
   const counts = new Map<string, number>();
   for (const p of profiles) {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { filterProfiles, allTags } from '../src/lib/filter';
+import { filterProfiles, allTags, parseTagInput } from '../src/lib/filter';
 import type { Profile } from '../src/lib/types';
 
 const p = (over: Partial<Profile>): Profile => ({
@@ -69,5 +69,23 @@ describe('allTags', () => {
 
   it('returns an empty list when nothing is tagged', () => {
     expect(allTags([p({})])).toEqual([]);
+  });
+});
+
+describe('parseTagInput', () => {
+  it('splits on commas and trims', () => {
+    expect(parseTagInput(' founders , berlin ')).toEqual(['founders', 'berlin']);
+  });
+
+  it('lowercases and de-duplicates', () => {
+    expect(parseTagInput('Founders, founders, FOUNDERS')).toEqual(['founders']);
+  });
+
+  it('drops empty entries', () => {
+    expect(parseTagInput('a,,  ,b,')).toEqual(['a', 'b']);
+  });
+
+  it('returns an empty array for an empty string', () => {
+    expect(parseTagInput('   ')).toEqual([]);
   });
 });
