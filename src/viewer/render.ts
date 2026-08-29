@@ -75,6 +75,27 @@ export function renderList(profiles: Profile[], selectedSlug: string | null): Do
   return f;
 }
 
+/** Committed tags as removable chips, plus one input for typing the next. */
+function tagEditor(p: Profile): HTMLElement {
+  const box = el('div', { className: 'tag-edit' });
+  box.id = 'tag-edit';
+
+  for (const tag of p.tags) {
+    const x = el('button', { className: 'chip-x', type: 'button', textContent: '×' });
+    x.dataset.remove = tag;
+    x.setAttribute('aria-label', `Remove tag ${tag}`);
+    box.append(el('span', { className: 'chip' }, [el('span', { textContent: tag }), x]));
+  }
+
+  const input = el('input', {
+    type: 'text',
+    placeholder: p.tags.length ? 'Add tag…' : 'type, then comma',
+  });
+  input.id = 'tag-new';
+  box.append(input);
+  return box;
+}
+
 export function renderDetail(p: Profile | null): DocumentFragment {
   const f = frag();
   if (!p) {
@@ -109,20 +130,14 @@ export function renderDetail(p: Profile | null): DocumentFragment {
     );
   }
 
-  const tagInput = el('input', {
-    type: 'text',
-    value: p.tags.join(', '),
-    placeholder: 'comma, separated',
-  });
-  tagInput.id = 'tag-input';
   const note = el('textarea', { value: p.note, placeholder: 'Notes…' });
   note.id = 'note';
   const del = el('button', { className: 'danger', type: 'button', textContent: 'Delete profile' });
   del.id = 'delete';
 
   f.append(
-    el('label', { htmlFor: 'tag-input', textContent: 'Tags' }),
-    tagInput,
+    el('label', { htmlFor: 'tag-new', textContent: 'Tags' }),
+    tagEditor(p),
     el('label', { htmlFor: 'note', textContent: 'Note' }),
     note,
     del,

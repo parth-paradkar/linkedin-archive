@@ -109,8 +109,38 @@ describe('renderDetail', () => {
   it('populates the editable fields', () => {
     const d = mount(renderDetail(p({ note: 'met at conf', tags: ['founders', 'berlin'] })));
     expect(d.querySelector<HTMLTextAreaElement>('#note')?.value).toBe('met at conf');
-    expect(d.querySelector<HTMLInputElement>('#tag-input')?.value).toBe('founders, berlin');
     expect(d.querySelector('#delete')).not.toBeNull();
+  });
+
+  it('renders one chip per tag, each with a remove button', () => {
+    const d = mount(renderDetail(p({ tags: ['founders', 'berlin'] })));
+    expect([...d.querySelectorAll('.chip')].map((c) => c.textContent?.replace('×', ''))).toEqual([
+      'founders',
+      'berlin',
+    ]);
+    expect([...d.querySelectorAll('[data-remove]')].map((b) => (b as HTMLElement).dataset.remove)).toEqual(
+      ['founders', 'berlin'],
+    );
+  });
+
+  it('labels each remove button for screen readers', () => {
+    const d = mount(renderDetail(p({ tags: ['founders'] })));
+    expect(d.querySelector('[data-remove]')?.getAttribute('aria-label')).toBe(
+      'Remove tag founders',
+    );
+  });
+
+  it('gives an always-empty input for typing the next tag', () => {
+    const d = mount(renderDetail(p({ tags: ['founders'] })));
+    const input = d.querySelector<HTMLInputElement>('#tag-new');
+    expect(input).not.toBeNull();
+    expect(input!.value).toBe('');
+  });
+
+  it('renders no chips when there are no tags', () => {
+    const d = mount(renderDetail(p({ tags: [] })));
+    expect(d.querySelectorAll('.chip')).toHaveLength(0);
+    expect(d.querySelector('#tag-new')).not.toBeNull();
   });
 
   it('omits the About block when there is no about text', () => {

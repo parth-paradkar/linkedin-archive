@@ -1,7 +1,7 @@
 import './viewer.css';
 import type { Profile } from '../lib/types';
 import { allProfiles, deleteProfile, importProfiles, putProfile } from '../lib/storage';
-import { allTags, filterProfiles, parseTagInput } from '../lib/filter';
+import { allTags, filterProfiles, parseTagInput, splitTagInput } from '../lib/filter';
 import { renderDetail, renderList, renderTagFilter } from './render';
 
 const $ = <T extends HTMLElement>(id: string): T => {
@@ -76,25 +76,67 @@ async function edit(change: (p: Profile) => void, redraw: boolean): Promise<void
 
 let noteTimer: ReturnType<typeof setTimeout> | undefined;
 
+const selected = (): Profile | undefined => state.profiles.find((x) => x.slug === state.selected);
+
+/**
+ * Add tags, then redraw so the chips and the sidebar counts update. Redrawing
+ * replaces the input, so put the half-typed remainder back and restore focus —
+ * but only when the commit came from typing, never from clicking away.
+ */
+async function addTags(add: string[], rest: string, refocus: boolean): Promise<void> {
+  await edit((p) => (p.tags = [...new Set([...p.tags, ...add])]), true);
+  const input = document.getElementById('tag-new') as HTMLInputElement | null;
+  if (!input) return;
+  input.value = rest;
+  if (refocus) input.focus();
+}
+
 els.detail.addEventListener('input', (e) => {
   const t = e.target as HTMLElement;
+
   if (t.id === 'note') {
     const value = (t as HTMLTextAreaElement).value;
+    // Update state now and persist on a debounce: a redraw triggered by a tag
+    // edit would otherwise repaint the textarea from the last saved value and
+    // throw away whatever is still in flight.
+    const p = selected();
+    if (p) p.note = value;
     clearTimeout(noteTimer);
-    noteTimer = setTimeout(() => void edit((p) => (p.note = value), false), 500);
+    noteTimer = setTimeout(() => void edit(() => {}, false), 500);
+    return;
+  }
+
+  if (t.id === 'tag-new') {
+    const input = t as HTMLInputElement;
+    const { tags, rest } = splitTagInput(input.value);
+    if (tags.length) void addTags(tags, rest, true);
+    else if (input.value !== rest) input.value = rest; // a lone comma
   }
 });
 
-els.detail.addEventListener('change', (e) => {
+els.detail.addEventListener('keydown', (e) => {
   const t = e.target as HTMLElement;
-  if (t.id === 'tag-input') {
-    const tags = parseTagInput((t as HTMLInputElement).value);
-    // Tag changes alter the sidebar counts and possibly the filtered list.
-    void edit((p) => (p.tags = tags), true);
-  }
+  if (t.id !== 'tag-new' || (e as KeyboardEvent).key !== 'Enter') return;
+  e.preventDefault();
+  const input = t as HTMLInputElement;
+  const tags = parseTagInput(input.value);
+  if (tags.length) void addTags(tags, '', true);
+});
+
+// Committing on the way out, so a typed-but-uncommitted tag is not silently lost.
+els.detail.addEventListener('focusout', (e) => {
+  const t = e.target as HTMLElement;
+  if (t.id !== 'tag-new') return;
+  const tags = parseTagInput((t as HTMLInputElement).value);
+  if (tags.length) void addTags(tags, '', false);
 });
 
 els.detail.addEventListener('click', (e) => {
+  const remove = (e.target as HTMLElement).closest<HTMLElement>('[data-remove]')?.dataset.remove;
+  if (remove !== undefined) {
+    void edit((p) => (p.tags = p.tags.filter((t) => t !== remove)), true);
+    return;
+  }
   if ((e.target as HTMLElement).id !== 'delete') return;
   const p = state.profiles.find((x) => x.slug === state.selected);
   if (!p || !confirm(`Delete ${p.name} from the archive?`)) return;
@@ -104,13 +146,13 @@ els.detail.addEventListener('click', (e) => {
   });
 });
 
-// Flush a pending note edit if the tab closes mid-debounce.
+// Flush a pending note edit if the tab closes mid-debounce. State already holds
+// the typed text, so this only has to persist it.
 window.addEventListener('beforeunload', () => {
   if (noteTimer === undefined) return;
   clearTimeout(noteTimer);
-  const p = state.profiles.find((x) => x.slug === state.selected);
-  const note = document.getElementById('note') as HTMLTextAreaElement | null;
-  if (p && note) void putProfile({ ...p, note: note.value, updatedAt: new Date().toISOString() });
+  const p = selected();
+  if (p) void putProfile({ ...p, updatedAt: new Date().toISOString() });
 });
 
 const io = {

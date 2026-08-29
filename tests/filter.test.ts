@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { filterProfiles, allTags, parseTagInput } from '../src/lib/filter';
+import { filterProfiles, allTags, parseTagInput, splitTagInput } from '../src/lib/filter';
 import type { Profile } from '../src/lib/types';
 
 const p = (over: Partial<Profile>): Profile => ({
@@ -87,5 +87,31 @@ describe('parseTagInput', () => {
 
   it('returns an empty array for an empty string', () => {
     expect(parseTagInput('   ')).toEqual([]);
+  });
+});
+
+describe('splitTagInput', () => {
+  it('commits nothing while the user is still typing', () => {
+    expect(splitTagInput('foun')).toEqual({ tags: [], rest: 'foun' });
+  });
+
+  it('commits the part before the comma and keeps the remainder', () => {
+    expect(splitTagInput('founders,')).toEqual({ tags: ['founders'], rest: '' });
+    expect(splitTagInput('founders, ber')).toEqual({ tags: ['founders'], rest: ' ber' });
+  });
+
+  it('commits several tags from a paste', () => {
+    expect(splitTagInput('founders, berlin, vc,')).toEqual({
+      tags: ['founders', 'berlin', 'vc'],
+      rest: '',
+    });
+  });
+
+  it('normalises case and drops blanks', () => {
+    expect(splitTagInput('Founders,, FOUNDERS ,')).toEqual({ tags: ['founders'], rest: '' });
+  });
+
+  it('swallows a lone comma', () => {
+    expect(splitTagInput(',')).toEqual({ tags: [], rest: '' });
   });
 });

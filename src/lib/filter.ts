@@ -19,6 +19,16 @@ export function parseTagInput(raw: string): string[] {
   return [...new Set(raw.split(',').map((t) => t.trim().toLowerCase()).filter(Boolean))];
 }
 
+/**
+ * Split what the user has typed at the last comma: everything before it is
+ * ready to become tags, everything after is still being typed.
+ */
+export function splitTagInput(raw: string): { tags: string[]; rest: string } {
+  const at = raw.lastIndexOf(',');
+  if (at < 0) return { tags: [], rest: raw };
+  return { tags: parseTagInput(raw.slice(0, at)), rest: raw.slice(at + 1) };
+}
+
 export function allTags(profiles: Profile[]): { tag: string; count: number }[] {
   const counts = new Map<string, number>();
   for (const p of profiles) {
