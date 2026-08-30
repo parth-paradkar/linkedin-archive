@@ -43,7 +43,9 @@ export async function proxy(request: NextRequest) {
   return response;
 }
 
-export const proxyConfig = {
+// Next 16.3 reads this export as `config`; `proxyConfig` is silently ignored,
+// which lets the proxy run on static assets and redirect them to /login.
+export const config = {
   // Everything except static assets.
   matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
 };
