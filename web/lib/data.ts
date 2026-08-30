@@ -22,11 +22,20 @@ export async function currentEmail(): Promise<string | null> {
   return user?.email ?? null;
 }
 
-export async function listProfiles(query: string, tags: string[]): Promise<Profile[]> {
+export const PER_PAGE = 10;
+
+export async function listProfiles(
+  query: string,
+  tags: string[],
+  page = 1,
+): Promise<{ profiles: Profile[]; total: number }> {
   const supabase = await createClient();
   const term = sanitise(query);
 
-  let request = supabase.from('profiles').select('*').order('saved_at', { ascending: false });
+  let request = supabase
+    .from('profiles')
+    .select('*', { count: 'exact' })
+    .order('saved_at', { ascending: false });
 
   if (term) {
     const like = `%${term}%`;
@@ -48,9 +57,12 @@ export async function listProfiles(query: string, tags: string[]): Promise<Profi
 
   if (tags.length) request = request.contains('tags', tags);
 
-  const { data, error } = await request;
+  const from = (Math.max(1, page) - 1) * PER_PAGE;
+  request = request.range(from, from + PER_PAGE - 1);
+
+  const { data, error, count } = await request;
   if (error) throw error;
-  return (data as ProfileRow[]).map(toProfile);
+  return { profiles: (data as ProfileRow[]).map(toProfile), total: count ?? 0 };
 }
 
 export async function allTags(): Promise<{ tag: string; count: number }[]> {
