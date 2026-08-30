@@ -107,3 +107,7 @@ input[type='search'], input[type='email'], input[type='text'], textarea {
 .code-box .muted:first-child { margin-top: 0; }
 .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; margin: 0; }
 .code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 32px; letter-spacing: 6px; margin: 0; }
+
+.delete-profile { margin-top: 28px; padding-top: 16px; border-top: 1px solid var(--line); }
+.delete-profile button { padding: 6px 12px; border: 1px solid var(--line); border-radius: 6px; background: none; color: var(--danger); cursor: pointer; }
+.delete-profile button:hover:not(:disabled) { background: var(--danger); color: #fff; }

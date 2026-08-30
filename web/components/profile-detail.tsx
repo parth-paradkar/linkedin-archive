@@ -2,6 +2,7 @@ import type { NoteEntry, Profile } from '@archive/shared';
 import { Avatar } from '@/components/avatar';
 import { NoteThread } from '@/components/note-thread';
 import { TagEditor } from '@/components/tag-editor';
+import { DeleteProfile } from '@/components/delete-profile';
 
 /** Detail view, shown in the sidebar pane and (via redirect fallback) full page. */
 export function ProfileDetail({
@@ -43,6 +44,8 @@ export function ProfileDetail({
 
       <label>Notes</label>
       <NoteThread slug={p.slug} notes={notes} viewerEmail={viewerEmail} />
+
+      <DeleteProfile slug={p.slug} name={p.name} afterHref={closeHref} />
     </div>
   );
 }
