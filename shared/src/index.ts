@@ -89,3 +89,24 @@ export const toUpsertArgs = (s: ScrapedProfile) => ({
   p_about: s.about,
   p_photo_url: s.photoUrl,
 });
+
+/**
+ * Tag input helpers. Shared because both surfaces accept tags the same way.
+ * (The extension still has its own copy until its storage rewrite; that copy
+ * is deleted then.)
+ */
+
+/** Normalise a comma-separated list: trimmed, lowercased, de-duplicated. */
+export function parseTagInput(raw: string): string[] {
+  return [...new Set(raw.split(',').map((t) => t.trim().toLowerCase()).filter(Boolean))];
+}
+
+/**
+ * Split what the user has typed at the last comma: everything before it is
+ * ready to become tags, everything after is still being typed.
+ */
+export function splitTagInput(raw: string): { tags: string[]; rest: string } {
+  const at = raw.lastIndexOf(',');
+  if (at < 0) return { tags: [], rest: raw };
+  return { tags: parseTagInput(raw.slice(0, at)), rest: raw.slice(at + 1) };
+}

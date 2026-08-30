@@ -224,6 +224,38 @@ begin
 end;
 $$;
 
+-- And the case that actually matters in public: no account at all, just the
+-- anon key that ships inside the extension and the browser bundle.
+reset role;
+select set_config('request.jwt.claims', null, true);
+set local role anon;
+
+do $$
+declare v_count integer;
+begin
+  select count(*) into v_count from public.profiles;
+  if v_count <> 0 then
+    raise exception 'SECURITY FAIL: anon read % profile rows', v_count;
+  end if;
+
+  select count(*) into v_count from public.notes;
+  if v_count <> 0 then
+    raise exception 'SECURITY FAIL: anon read % note rows', v_count;
+  end if;
+
+  select count(*) into v_count from public.allowed_emails;
+  if v_count <> 0 then
+    raise exception 'SECURITY FAIL: anon read the member list';
+  end if;
+
+  begin
+    insert into public.profiles (slug, url) values ('anon-intruder', 'https://x');
+    raise exception 'SECURITY FAIL: anon inserted a profile';
+  exception when insufficient_privilege then null;
+  end;
+end;
+$$;
+
 rollback;
 
 \echo 'ALL BEHAVIOUR TESTS PASSED'

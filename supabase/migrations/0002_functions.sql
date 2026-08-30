@@ -52,7 +52,7 @@ begin
     location   = coalesce(nullif(excluded.location, ''),  pr.location),
     about      = coalesce(nullif(excluded.about, ''),     pr.about),
     photo_url  = coalesce(nullif(excluded.photo_url, ''), pr.photo_url),
-    updated_at = now()
+    updated_at = clock_timestamp()
   where (
     pr.url, pr.name, pr.headline, pr.company,
     pr.role, pr.location, pr.about, pr.photo_url
@@ -85,7 +85,7 @@ as $$
                   when lower(trim(p_tag)) = any (tags) then tags
                   else array_append(tags, lower(trim(p_tag)))
                 end,
-         updated_at = now()
+         updated_at = clock_timestamp()
    where slug = p_slug
      and trim(p_tag) <> ''
   returning tags;
@@ -98,7 +98,7 @@ create function public.remove_tag(p_slug text, p_tag text) returns text[]
 as $$
   update public.profiles
      set tags = array_remove(tags, lower(trim(p_tag))),
-         updated_at = now()
+         updated_at = clock_timestamp()
    where slug = p_slug
   returning tags;
 $$;

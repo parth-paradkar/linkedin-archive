@@ -27,7 +27,7 @@ create table public.profiles (
   tags       text[] not null default '{}',
   saved_by   uuid references auth.users (id) on delete set null,
   saved_at   timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default clock_timestamp()
 );
 
 -- Append-only, attributed. Nothing here overwrites another member's writing.
@@ -35,6 +35,9 @@ create table public.notes (
   id         uuid primary key default gen_random_uuid(),
   slug       text not null references public.profiles (slug) on delete cascade,
   author     uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  -- Denormalised for display. Exposing auth.users through a view would widen
+  -- the attack surface for no benefit at this size.
+  author_email text not null default (auth.jwt() ->> 'email'),
   body       text not null check (length(trim(body)) > 0),
   created_at timestamptz not null default now(),
   edited_at  timestamptz
@@ -83,6 +86,8 @@ create policy notes_select on public.notes
 -- Members write notes only as themselves.
 create policy notes_insert on public.notes
   for insert with check (public.is_member() and author = auth.uid());
+
+grant execute on function public.is_member() to authenticated;
 -- And may revise only their own.
 create policy notes_update on public.notes
   for update using (public.is_member() and author = auth.uid())
