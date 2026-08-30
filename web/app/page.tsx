@@ -55,6 +55,9 @@ export default async function Archive({ searchParams }: Props) {
           ))}
         </div>
         <div className="spacer" />
+        <Link href="/connect" className="muted" style={{ fontSize: 12 }}>
+          Connect extension →
+        </Link>
         <p className="muted" style={{ fontSize: 12 }}>
           {email}
         </p>

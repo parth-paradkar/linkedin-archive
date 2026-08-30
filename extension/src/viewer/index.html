@@ -9,12 +9,15 @@
     <div id="signin" class="centered" hidden>
       <div class="card">
         <h1>LinkedIn Archive</h1>
-        <p class="muted">Sign in with your email. We&rsquo;ll send you a code.</p>
+        <p class="muted">
+          Open the web app, go to <strong>Connect extension</strong>, and generate a code. Then
+          enter your email and that code here.
+        </p>
+        <p class="muted"><a id="web-link" href="#" target="_blank" rel="noreferrer">Open the web app</a></p>
         <div class="stack">
           <input id="email" type="email" placeholder="you@example.com" autocomplete="email" />
-          <button id="send-code" type="button">Send code</button>
-          <input id="code" type="text" inputmode="numeric" placeholder="6-digit code" hidden />
-          <button id="verify" type="button" hidden>Sign in</button>
+          <input id="code" type="text" inputmode="numeric" placeholder="6-digit code" />
+          <button id="verify" type="button">Sign in</button>
           <p id="auth-status" class="status"></p>
         </div>
       </div>

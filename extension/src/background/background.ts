@@ -26,13 +26,16 @@ async function handle(msg: Msg): Promise<Res[Msg['type']]> {
     }
 
     case 'verifyCode': {
-      const { data, error } = await supabase.auth.verifyOtp({
-        email: msg.email,
-        token: msg.code,
-        type: 'email',
-      });
-      if (error) throw error;
-      return { email: data.user?.email ?? msg.email };
+      // A code from signInWithOtp verifies as 'email'; one minted by the web
+      // app's generateLink verifies as 'magiclink'. Try the common case first.
+      const email = msg.email.trim();
+      const token = msg.code.trim();
+      let res = await supabase.auth.verifyOtp({ email, token, type: 'email' });
+      if (res.error) {
+        res = await supabase.auth.verifyOtp({ email, token, type: 'magiclink' });
+      }
+      if (res.error) throw res.error;
+      return { email: res.data.user?.email ?? email };
     }
 
     case 'signOut':

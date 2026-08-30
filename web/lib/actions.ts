@@ -75,3 +75,39 @@ export async function deleteProfile(slug: string) {
   revalidatePath('/');
   return {};
 }
+
+/**
+ * Generate a one-time code the current user pastes into the browser extension.
+ *
+ * The extension cannot receive the code by email (Supabase blocks email-template
+ * changes on the free tier, so the emailed magic link carries no OTP). This
+ * hands the same OTP back through the authenticated web session instead.
+ *
+ * Locked to the caller's own email: there is no email parameter. Someone would
+ * need an authenticated member session to mint a code for their own account,
+ * which grants nothing new.
+ */
+export async function getExtensionCode(): Promise<
+  { code: string; email: string; expiresInMinutes: number } | { error: string }
+> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user?.email) return { error: 'Signed out.' };
+
+  const { data: member } = await supabase.rpc('is_member');
+  if (member !== true) return { error: 'Not a member of this workspace.' };
+
+  const { adminClient } = await import('./supabase/admin');
+  const { data, error } = await adminClient().auth.admin.generateLink({
+    type: 'magiclink',
+    email: user.email,
+  });
+  if (error || !data.properties?.email_otp) {
+    return { error: error?.message ?? 'Could not generate a code.' };
+  }
+
+  // otp_expiry is 3600s in supabase/config.toml.
+  return { code: data.properties.email_otp, email: user.email, expiresInMinutes: 60 };
+}

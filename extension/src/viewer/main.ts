@@ -13,7 +13,7 @@ const $ = <T extends HTMLElement>(id: string): T => {
 const els = {
   signin: $('signin'),
   email: $<HTMLInputElement>('email'),
-  sendCode: $<HTMLButtonElement>('send-code'),
+  webLink: $<HTMLAnchorElement>('web-link'),
   code: $<HTMLInputElement>('code'),
   verify: $<HTMLButtonElement>('verify'),
   authStatus: $('auth-status'),
@@ -79,23 +79,8 @@ async function showSignedIn(email: string): Promise<void> {
   await reload();
 }
 
-els.sendCode.addEventListener('click', async () => {
-  const email = els.email.value.trim();
-  if (!email) return;
-  els.sendCode.disabled = true;
-  els.authStatus.textContent = 'Sending…';
-  try {
-    await send({ type: 'signIn', email });
-    els.code.hidden = false;
-    els.verify.hidden = false;
-    els.code.focus();
-    els.authStatus.textContent = `Enter the code sent to ${email}.`;
-  } catch (e) {
-    els.authStatus.textContent = e instanceof Error ? e.message : String(e);
-  } finally {
-    els.sendCode.disabled = false;
-  }
-});
+els.webLink.href = import.meta.env.VITE_WEB_URL ?? '#';
+els.webLink.textContent = 'Open the web app';
 
 els.verify.addEventListener('click', async () => {
   const email = els.email.value.trim();

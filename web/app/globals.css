@@ -85,3 +85,11 @@ input[type='search'], input[type='email'], input[type='text'], textarea {
 .note-actions button { border: 0; background: none; padding: 0; color: var(--muted); font-size: 12px; text-decoration: underline; }
 .danger { color: var(--danger); }
 .empty { padding: 32px 4px; color: var(--muted); }
+
+.connect { max-width: 420px; margin-top: 16px; }
+.connect button { padding: 8px 14px; border: 1px solid var(--line); border-radius: 6px; background: var(--sel); }
+.code-box { margin-top: 16px; padding: 16px; border: 1px solid var(--line); border-radius: 10px; }
+.code-box .muted { margin: 12px 0 2px; font-size: 12px; }
+.code-box .muted:first-child { margin-top: 0; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; margin: 0; }
+.code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 32px; letter-spacing: 6px; margin: 0; }
