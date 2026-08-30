@@ -243,6 +243,12 @@ otp_expiry = 3600
 # sender_name = "Admin"
 
 # Uncomment to customize email template
+# The extension signs in with the code, not the link, so the template must
+# render {{ .Token }} as well as {{ .ConfirmationURL }}.
+[auth.email.template.magic_link]
+subject = "Your sign-in code for LinkedIn Archive"
+content_path = "./supabase/templates/magic_link.html"
+
 # [auth.email.template.invite]
 # subject = "You have been invited"
 # content_path = "./supabase/templates/invite.html"
