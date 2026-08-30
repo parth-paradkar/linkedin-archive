@@ -155,11 +155,11 @@ max_indexes = 5
 enabled = true
 # The base URL of your website. Used as an allow-list for redirects and for constructing URLs used
 # in emails.
-site_url = "http://localhost:3000"
+site_url = "https://linkedin-archive-rose.vercel.app"
 # The public URL that Auth serves on. Defaults to the API external URL with `/auth/v1` appended.
 # external_url = ""
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-additional_redirect_urls = ["http://localhost:3000/auth/callback", "http://127.0.0.1:3000/auth/callback"]
+additional_redirect_urls = ["https://linkedin-archive-rose.vercel.app/auth/callback", "https://linkedin-archive-apti-ai.vercel.app/auth/callback", "http://localhost:3000/auth/callback", "http://127.0.0.1:3000/auth/callback"]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
 # JWT issuer URL. If not set, defaults to auth.external_url.
@@ -226,7 +226,9 @@ enable_confirmations = false
 # If enabled, users will need to reauthenticate or have logged in recently to change their password.
 secure_password_change = false
 # Controls the minimum amount of time that must pass before sending another signup confirmation or password reset email.
-max_frequency = "1s"
+# Anyone can request a sign-in email, so keep the default throttle in
+# production. 1s is the local-dev default and is far too permissive.
+max_frequency = "1m0s"
 # Number of characters used in the email OTP.
 otp_length = 6
 # Number of seconds before the email OTP expires (defaults to 1 hour).
@@ -245,9 +247,12 @@ otp_expiry = 3600
 # Uncomment to customize email template
 # The extension signs in with the code, not the link, so the template must
 # render {{ .Token }} as well as {{ .ConfirmationURL }}.
-[auth.email.template.magic_link]
-subject = "Your sign-in code for LinkedIn Archive"
-content_path = "./supabase/templates/magic_link.html"
+# Requires a paid plan or custom SMTP; the free tier's default email provider
+# rejects template changes. Re-enable once SMTP is configured — the extension
+# needs {{ .Token }} in the email to sign in.
+# [auth.email.template.magic_link]
+# subject = "Your sign-in code for LinkedIn Archive"
+# content_path = "./supabase/templates/magic_link.html"
 
 # [auth.email.template.invite]
 # subject = "You have been invited"
