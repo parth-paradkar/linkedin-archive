@@ -1,8 +1,8 @@
 import './viewer.css';
-import type { Profile } from '../lib/types';
-import { allProfiles, deleteProfile, importProfiles, putProfile } from '../lib/storage';
+import type { NoteEntry, Profile } from '@archive/shared';
 import { allTags, filterProfiles, parseTagInput, splitTagInput } from '../lib/filter';
-import { renderDetail, renderList, renderTagFilter } from './render';
+import { send } from '../lib/messages';
+import { renderDetail, renderList, renderNotes, renderTagFilter } from './render';
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const node = document.getElementById(id);
@@ -11,36 +11,114 @@ const $ = <T extends HTMLElement>(id: string): T => {
 };
 
 const els = {
+  signin: $('signin'),
+  email: $<HTMLInputElement>('email'),
+  sendCode: $<HTMLButtonElement>('send-code'),
+  code: $<HTMLInputElement>('code'),
+  verify: $<HTMLButtonElement>('verify'),
+  authStatus: $('auth-status'),
+  app: $('app'),
   search: $<HTMLInputElement>('search'),
   tags: $('tags'),
   list: $('list'),
   detail: $('detail'),
+  who: $('who'),
+  signout: $<HTMLButtonElement>('signout'),
 };
 
 const state = {
+  email: null as string | null,
   profiles: [] as Profile[],
+  notes: [] as NoteEntry[],
   query: '',
   tags: [] as string[],
   selected: null as string | null,
 };
 
-export function visible(): Profile[] {
-  return filterProfiles(state.profiles, state.query, state.tags);
-}
-
-export function draw(): void {
-  const shown = visible();
+function draw(): void {
   els.tags.replaceChildren(renderTagFilter(allTags(state.profiles), state.tags));
-  els.list.replaceChildren(renderList(shown, state.selected));
-  els.detail.replaceChildren(
-    renderDetail(state.profiles.find((p) => p.slug === state.selected) ?? null),
+  els.list.replaceChildren(
+    renderList(filterProfiles(state.profiles, state.query, state.tags), state.selected),
   );
+  const current = state.profiles.find((p) => p.slug === state.selected) ?? null;
+  const detail = renderDetail(current);
+  if (current) detail.append(renderNotes(state.notes, state.email ?? ''));
+  els.detail.replaceChildren(detail);
 }
 
-export async function reload(): Promise<void> {
-  state.profiles = await allProfiles();
+async function loadSelected(): Promise<void> {
+  if (!state.selected) {
+    state.notes = [];
+    return;
+  }
+  const { notes } = await send({ type: 'getProfile', slug: state.selected });
+  state.notes = notes;
+}
+
+async function reload(): Promise<void> {
+  const { profiles } = await send({ type: 'listProfiles' });
+  state.profiles = profiles;
+  await loadSelected();
   draw();
 }
+
+// ---------------------------------------------------------------- auth
+
+function showSignedOut(message = ''): void {
+  state.email = null;
+  els.app.hidden = true;
+  els.signin.hidden = false;
+  els.authStatus.textContent = message;
+}
+
+async function showSignedIn(email: string): Promise<void> {
+  state.email = email;
+  els.signin.hidden = true;
+  els.app.hidden = false;
+  els.who.textContent = email;
+  await reload();
+}
+
+els.sendCode.addEventListener('click', async () => {
+  const email = els.email.value.trim();
+  if (!email) return;
+  els.sendCode.disabled = true;
+  els.authStatus.textContent = 'Sending…';
+  try {
+    await send({ type: 'signIn', email });
+    els.code.hidden = false;
+    els.verify.hidden = false;
+    els.code.focus();
+    els.authStatus.textContent = `Enter the code sent to ${email}.`;
+  } catch (e) {
+    els.authStatus.textContent = e instanceof Error ? e.message : String(e);
+  } finally {
+    els.sendCode.disabled = false;
+  }
+});
+
+els.verify.addEventListener('click', async () => {
+  const email = els.email.value.trim();
+  const code = els.code.value.trim();
+  if (!email || !code) return;
+  els.verify.disabled = true;
+  els.authStatus.textContent = 'Signing in…';
+  try {
+    const res = await send({ type: 'verifyCode', email, code });
+    await showSignedIn(res.email);
+  } catch (e) {
+    els.authStatus.textContent = e instanceof Error ? e.message : String(e);
+  } finally {
+    els.verify.disabled = false;
+  }
+});
+
+els.signout.addEventListener('click', async () => {
+  await send({ type: 'signOut' });
+  showSignedOut('Signed out.');
+});
+
+// ------------------------------------------------------------- browsing
 
 els.search.addEventListener('input', () => {
   state.query = els.search.value;
@@ -56,49 +134,33 @@ els.tags.addEventListener('click', (e) => {
   draw();
 });
 
-els.list.addEventListener('click', (e) => {
+els.list.addEventListener('click', async (e) => {
   const slug = (e.target as HTMLElement).closest<HTMLElement>('[data-slug]')?.dataset.slug;
   if (!slug) return;
   state.selected = slug;
+  await loadSelected();
   draw();
 });
 
-/** Apply an edit to the selected profile, persist it, and refresh derived UI. */
-async function edit(change: (p: Profile) => void, redraw: boolean): Promise<void> {
-  const p = state.profiles.find((x) => x.slug === state.selected);
-  if (!p) return;
-  change(p);
-  p.updatedAt = new Date().toISOString();
-  await putProfile(p);
-  // Redrawing rebuilds the detail panel, which would steal focus mid-typing.
-  if (redraw) draw();
-}
+// ---------------------------------------------------------------- edits
 
-let noteTimer: ReturnType<typeof setTimeout> | undefined;
-
-const selected = (): Profile | undefined => state.profiles.find((x) => x.slug === state.selected);
-
-/**
- * True while a tag edit is redrawing the panel. Replacing the input blurs it,
- * and the browser fires that focusout *before* detaching the node — so the
- * focusout handler still sees the old element holding text we already
- * committed. Without this guard it commits that text a second time and kicks
- * off another redraw, which is what steals the caret mid-typing.
- */
+/** See the extension's earlier fix: replacing the input during a redraw fires a
+ *  focusout carrying text already committed. Guard so it is not committed twice. */
 let committingTags = false;
 
-/**
- * Rewrite the tag list, redraw so chips and sidebar counts update, then put
- * any half-typed remainder back in the fresh input.
- */
-async function setTags(
-  next: (p: Profile) => string[],
-  rest: string,
-  refocus: boolean,
-): Promise<void> {
+async function applyTags(next: string[] | null, tag: string, rest: string, refocus: boolean) {
   committingTags = true;
   try {
-    await edit((p) => (p.tags = next(p)), true);
+    const slug = state.selected;
+    if (!slug) return;
+    const res = next
+      ? await send({ type: 'addTag', slug, tag })
+      : await send({ type: 'removeTag', slug, tag });
+    const p = state.profiles.find((x) => x.slug === slug);
+    if (p) p.tags = res.tags;
+    draw();
+  } catch (e) {
+    console.error('[LinkedIn Archive]', e);
   } finally {
     committingTags = false;
   }
@@ -108,42 +170,27 @@ async function setTags(
   if (refocus) input.focus();
 }
 
-const addTags = (add: string[], rest: string, refocus: boolean) =>
-  setTags((p) => [...new Set([...p.tags, ...add])], rest, refocus);
+async function addTags(tags: string[], rest: string, refocus: boolean) {
+  for (const tag of tags) await applyTags([tag], tag, rest, refocus);
+}
 
 els.detail.addEventListener('input', (e) => {
   const t = e.target as HTMLElement;
-
-  if (t.id === 'note') {
-    const value = (t as HTMLTextAreaElement).value;
-    // Update state now and persist on a debounce: a redraw triggered by a tag
-    // edit would otherwise repaint the textarea from the last saved value and
-    // throw away whatever is still in flight.
-    const p = selected();
-    if (p) p.note = value;
-    clearTimeout(noteTimer);
-    noteTimer = setTimeout(() => void edit(() => {}, false), 500);
-    return;
-  }
-
-  if (t.id === 'tag-new') {
-    const input = t as HTMLInputElement;
-    const { tags, rest } = splitTagInput(input.value);
-    if (tags.length) void addTags(tags, rest, true);
-    else if (input.value !== rest) input.value = rest; // a lone comma
-  }
+  if (t.id !== 'tag-new') return;
+  const input = t as HTMLInputElement;
+  const { tags, rest } = splitTagInput(input.value);
+  if (tags.length) void addTags(tags, rest, true);
+  else if (input.value !== rest) input.value = rest;
 });
 
 els.detail.addEventListener('keydown', (e) => {
   const t = e.target as HTMLElement;
   if (t.id !== 'tag-new' || (e as KeyboardEvent).key !== 'Enter') return;
   e.preventDefault();
-  const input = t as HTMLInputElement;
-  const tags = parseTagInput(input.value);
+  const tags = parseTagInput((t as HTMLInputElement).value);
   if (tags.length) void addTags(tags, '', true);
 });
 
-// Committing on the way out, so a typed-but-uncommitted tag is not silently lost.
 els.detail.addEventListener('focusout', (e) => {
   const t = e.target as HTMLElement;
   if (t.id !== 'tag-new' || committingTags) return;
@@ -151,74 +198,42 @@ els.detail.addEventListener('focusout', (e) => {
   if (tags.length) void addTags(tags, '', false);
 });
 
-els.detail.addEventListener('click', (e) => {
-  const remove = (e.target as HTMLElement).closest<HTMLElement>('[data-remove]')?.dataset.remove;
+els.detail.addEventListener('click', async (e) => {
+  const target = e.target as HTMLElement;
+  const slug = state.selected;
+  if (!slug) return;
+
+  const remove = target.closest<HTMLElement>('[data-remove]')?.dataset.remove;
   if (remove !== undefined) {
-    // Keep whatever is half-typed; removing a chip should not discard it.
     const pending = (document.getElementById('tag-new') as HTMLInputElement | null)?.value ?? '';
-    void setTags((p) => p.tags.filter((t) => t !== remove), pending, true);
+    await applyTags(null, remove, pending, true);
     return;
   }
-  if ((e.target as HTMLElement).id !== 'delete') return;
-  const p = state.profiles.find((x) => x.slug === state.selected);
-  if (!p || !confirm(`Delete ${p.name} from the archive?`)) return;
-  void deleteProfile(p.slug).then(() => {
-    state.selected = null;
-    return reload();
-  });
-});
 
-// Flush a pending note edit if the tab closes mid-debounce. State already holds
-// the typed text, so this only has to persist it.
-window.addEventListener('beforeunload', () => {
-  if (noteTimer === undefined) return;
-  clearTimeout(noteTimer);
-  const p = selected();
-  if (p) void putProfile({ ...p, updatedAt: new Date().toISOString() });
-});
+  const noteId = target.closest<HTMLElement>('[data-delete-note]')?.dataset.deleteNote;
+  if (noteId) {
+    if (!confirm('Delete this note?')) return;
+    await send({ type: 'deleteNote', id: noteId });
+    await loadSelected();
+    draw();
+    return;
+  }
 
-const io = {
-  exportBtn: $<HTMLButtonElement>('export'),
-  importBtn: $<HTMLButtonElement>('import-btn'),
-  file: $<HTMLInputElement>('import'),
-  status: $('io-status'),
-};
-
-io.exportBtn.addEventListener('click', () => {
-  const blob = new Blob([JSON.stringify(state.profiles, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = Object.assign(document.createElement('a'), {
-    href: url,
-    download: `linkedin-archive-${new Date().toISOString().slice(0, 10)}.json`,
-  });
-  a.click();
-  URL.revokeObjectURL(url);
-  io.status.textContent = `Exported ${state.profiles.length} profiles.`;
-});
-
-io.importBtn.addEventListener('click', () => io.file.click());
-
-io.file.addEventListener('change', async () => {
-  const file = io.file.files?.[0];
-  if (!file) return;
-  io.status.textContent = 'Importing…';
-  try {
-    const parsed: unknown = JSON.parse(await file.text());
-    if (!Array.isArray(parsed)) throw new Error('expected a JSON array of profiles');
-    const { added, updated, skipped } = await importProfiles(parsed);
-    await reload();
-    io.status.textContent = `Added ${added}, updated ${updated}, skipped ${skipped}.`;
-  } catch (e) {
-    io.status.textContent = `Import failed: ${e instanceof Error ? e.message : String(e)}`;
-  } finally {
-    // Reset so re-picking the same file fires `change` again.
-    io.file.value = '';
+  if (target.id === 'note-add') {
+    const box = document.getElementById('note-new') as HTMLTextAreaElement | null;
+    const body = box?.value.trim();
+    if (!body) return;
+    await send({ type: 'addNote', slug, body });
+    await loadSelected();
+    draw();
   }
 });
 
 // The background worker opens the viewer at #<slug> to focus one record.
 state.selected = decodeURIComponent(location.hash.slice(1)) || null;
 
-void reload();
-
-export { state };
+void (async () => {
+  const { email } = await send({ type: 'authState' });
+  if (email) await showSignedIn(email);
+  else showSignedOut();
+})();

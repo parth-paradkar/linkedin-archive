@@ -1,4 +1,4 @@
-import type { Profile } from '../lib/types';
+import type { NoteEntry, Profile } from '@archive/shared';
 
 const frag = (): DocumentFragment => document.createDocumentFragment();
 
@@ -130,17 +130,48 @@ export function renderDetail(p: Profile | null): DocumentFragment {
     );
   }
 
-  const note = el('textarea', { value: p.note, placeholder: 'Notes…' });
-  note.id = 'note';
-  const del = el('button', { className: 'danger', type: 'button', textContent: 'Delete profile' });
-  del.id = 'delete';
-
   f.append(
     el('label', { htmlFor: 'tag-new', textContent: 'Tags' }),
     tagEditor(p),
-    el('label', { htmlFor: 'note', textContent: 'Note' }),
-    note,
-    del,
+    el('label', { textContent: 'Notes' }),
   );
+  return f;
+}
+
+/** Attributed, append-only. Only your own entries offer a delete control; the
+ *  database enforces that regardless of what is rendered. */
+export function renderNotes(
+  notes: NoteEntry[],
+  viewerEmail: string,
+): DocumentFragment {
+  const f = frag();
+  const thread = el('div', { className: 'thread' });
+
+  if (!notes.length) thread.append(el('p', { className: 'muted', textContent: 'No notes yet.' }));
+
+  for (const n of notes) {
+    const mine = n.authorEmail === viewerEmail;
+    const head = el('div', { className: 'note-head' }, [
+      el('span', { className: 'who', textContent: mine ? 'You' : n.authorEmail }),
+      el('span', { textContent: new Date(n.createdAt).toLocaleString() }),
+    ]);
+    const note = el('div', { className: 'note' }, [
+      head,
+      el('p', { className: 'note-body', textContent: n.body }),
+    ]);
+    if (mine) {
+      const del = el('button', { className: 'note-del', type: 'button', textContent: 'Delete' });
+      del.dataset.deleteNote = n.id;
+      note.append(el('div', { className: 'note-actions' }, [del]));
+    }
+    thread.append(note);
+  }
+
+  const box = el('textarea', { placeholder: 'Add a note\u2026' });
+  box.id = 'note-new';
+  const add = el('button', { type: 'button', textContent: 'Add note' });
+  add.id = 'note-add';
+
+  f.append(thread, box, el('div', {}, [add]));
   return f;
 }

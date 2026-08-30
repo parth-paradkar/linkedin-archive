@@ -12,11 +12,13 @@ const STYLE = `
 }
 .lia-pill:hover { background: #004182; }
 .lia-pill[data-state="saved"] { background: #057642; }
+.lia-pill[data-state="signedout"] { background: #4a4a4a; }
 .lia-pill[data-state="error"] { background: #b24020; }
 .lia-pill[disabled] { opacity: 0.7; cursor: default; }
 `;
 
 const SAVE_LABEL = 'Save to Archive';
+const SIGNIN_LABEL = 'Sign in to save';
 const SAVED_LABEL = 'Saved ✓ · Open note';
 const UPDATED_LABEL = 'Updated ✓';
 
@@ -47,7 +49,7 @@ function mount(): HTMLButtonElement {
   return button;
 }
 
-function setState(state: 'save' | 'saved' | 'busy' | 'error', label: string) {
+function setState(state: 'save' | 'saved' | 'busy' | 'error' | 'signedout', label: string) {
   const b = mount();
   b.dataset.state = state;
   b.textContent = label;
@@ -58,7 +60,8 @@ async function onClick() {
   const slug = slugFromUrl(location.href);
   if (!slug) return;
 
-  if (button?.dataset.state === 'saved') {
+  // Signed out, or already saved: both open the viewer rather than saving.
+  if (button?.dataset.state === 'saved' || button?.dataset.state === 'signedout') {
     await send({ type: 'openViewer', slug });
     return;
   }
@@ -124,7 +127,11 @@ async function refresh() {
     return;
   }
   try {
-    const { saved } = await send({ type: 'isSaved', slug });
+    const { saved, signedIn } = await send({ type: 'isSaved', slug });
+    if (!signedIn) {
+      setState('signedout', SIGNIN_LABEL);
+      return;
+    }
     setState(saved ? 'saved' : 'save', saved ? SAVED_LABEL : SAVE_LABEL);
     if (saved) void autoUpdate(slug);
   } catch (e) {

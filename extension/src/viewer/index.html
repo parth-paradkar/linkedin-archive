@@ -6,20 +6,33 @@
     <link rel="stylesheet" href="./viewer.css" />
   </head>
   <body>
-    <aside class="sidebar">
-      <h1>Archive</h1>
-      <input id="search" type="search" placeholder="Search…" autocomplete="off" />
-      <div id="tags" class="tags"></div>
-      <div class="spacer"></div>
-      <div class="io">
-        <button id="export" type="button">Export JSON</button>
-        <button id="import-btn" type="button">Import JSON</button>
-        <input id="import" type="file" accept="application/json" hidden />
+    <div id="signin" class="centered" hidden>
+      <div class="card">
+        <h1>LinkedIn Archive</h1>
+        <p class="muted">Sign in with your email. We&rsquo;ll send you a code.</p>
+        <div class="stack">
+          <input id="email" type="email" placeholder="you@example.com" autocomplete="email" />
+          <button id="send-code" type="button">Send code</button>
+          <input id="code" type="text" inputmode="numeric" placeholder="6-digit code" hidden />
+          <button id="verify" type="button" hidden>Sign in</button>
+          <p id="auth-status" class="status"></p>
+        </div>
       </div>
-      <p id="io-status" class="status"></p>
-    </aside>
-    <main class="list" id="list"></main>
-    <section class="detail" id="detail"></section>
+    </div>
+
+    <div id="app" class="shell" hidden>
+      <aside class="sidebar">
+        <h1>Archive</h1>
+        <input id="search" type="search" placeholder="Search…" autocomplete="off" />
+        <div id="tags" class="tags"></div>
+        <div class="spacer"></div>
+        <p id="who" class="status"></p>
+        <button id="signout" type="button">Sign out</button>
+      </aside>
+      <main class="list" id="list"></main>
+      <section class="detail" id="detail"></section>
+    </div>
+
     <script type="module" src="./main.ts"></script>
   </body>
 </html>

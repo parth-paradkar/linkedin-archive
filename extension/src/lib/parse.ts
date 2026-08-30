@@ -1,4 +1,4 @@
-import type { ScrapedProfile } from './types';
+import type { ScrapedProfile } from '@archive/shared';
 
 /**
  * Every LinkedIn-specific selector in the project lives in this file.

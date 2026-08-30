@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { filterProfiles, allTags, parseTagInput, splitTagInput } from '../src/lib/filter';
-import type { Profile } from '../src/lib/types';
+import type { Profile } from '@archive/shared';
 
 const p = (over: Partial<Profile>): Profile => ({
   slug: 'x',
@@ -15,14 +15,14 @@ const p = (over: Partial<Profile>): Profile => ({
   savedAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
   tags: [],
-  note: '',
+  savedBy: null,
   ...over,
 });
 
 const people = [
   p({ slug: 'jane', name: 'Jane Doe', company: 'Acme', tags: ['founders', 'berlin'] }),
   p({ slug: 'john', name: 'John Smith', headline: 'Designer', tags: ['design'] }),
-  p({ slug: 'ada', name: 'Ada L', note: 'met at Acme offsite', tags: ['founders'] }),
+  p({ slug: 'ada', name: 'Ada L', company: 'Acme', tags: ['founders'] }),
 ];
 
 describe('filterProfiles', () => {

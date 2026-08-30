@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { renderList, renderDetail, renderTagFilter } from '../src/viewer/render';
-import type { Profile } from '../src/lib/types';
+import { renderList, renderDetail, renderNotes, renderTagFilter } from '../src/viewer/render';
+import type { NoteEntry, Profile } from '@archive/shared';
 
 const p = (over: Partial<Profile> = {}): Profile => ({
   slug: 'jane',
@@ -15,7 +15,7 @@ const p = (over: Partial<Profile> = {}): Profile => ({
   savedAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
   tags: [],
-  note: '',
+  savedBy: null,
   ...over,
 });
 
@@ -106,11 +106,6 @@ describe('renderDetail', () => {
     expect(mount(renderDetail(null)).querySelector('.empty')).not.toBeNull();
   });
 
-  it('populates the editable fields', () => {
-    const d = mount(renderDetail(p({ note: 'met at conf', tags: ['founders', 'berlin'] })));
-    expect(d.querySelector<HTMLTextAreaElement>('#note')?.value).toBe('met at conf');
-    expect(d.querySelector('#delete')).not.toBeNull();
-  });
 
   it('renders one chip per tag, each with a remove button', () => {
     const d = mount(renderDetail(p({ tags: ['founders', 'berlin'] })));
@@ -152,5 +147,47 @@ describe('renderDetail', () => {
     const d = mount(renderDetail(p({ name: '<img src=x onerror=alert(1)>' })));
     expect(d.querySelector('h2')?.textContent).toBe('<img src=x onerror=alert(1)>');
     expect(d.querySelectorAll('img')).toHaveLength(1); // only the avatar
+  });
+});
+
+const note = (over: Partial<NoteEntry> = {}): NoteEntry => ({
+  id: 'n1',
+  slug: 'jane',
+  author: 'u1',
+  authorEmail: 'a@example.com',
+  body: 'met at conf',
+  createdAt: '2026-01-01T00:00:00.000Z',
+  editedAt: null,
+  ...over,
+});
+
+describe('renderNotes', () => {
+  it('shows an empty state', () => {
+    const d = mount(renderNotes([], 'a@example.com'));
+    expect(d.textContent).toContain('No notes yet.');
+  });
+
+  it('labels your own entries and offers a delete control', () => {
+    const d = mount(renderNotes([note()], 'a@example.com'));
+    expect(d.querySelector('.who')?.textContent).toBe('You');
+    expect(d.querySelector('[data-delete-note]')).not.toBeNull();
+  });
+
+  it("attributes another member's entry and offers no controls", () => {
+    const d = mount(renderNotes([note()], 'someone-else@example.com'));
+    expect(d.querySelector('.who')?.textContent).toBe('a@example.com');
+    expect(d.querySelector('[data-delete-note]')).toBeNull();
+  });
+
+  it('treats note text as text, never as markup', () => {
+    const d = mount(renderNotes([note({ body: '<img src=x onerror=alert(1)>' })], 'a@example.com'));
+    expect(d.querySelector('.note-body')?.textContent).toBe('<img src=x onerror=alert(1)>');
+    expect(d.querySelectorAll('img')).toHaveLength(0);
+  });
+
+  it('offers a compose box', () => {
+    const d = mount(renderNotes([], 'a@example.com'));
+    expect(d.querySelector('#note-new')).not.toBeNull();
+    expect(d.querySelector('#note-add')).not.toBeNull();
   });
 });
