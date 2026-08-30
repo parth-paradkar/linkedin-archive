@@ -6,7 +6,7 @@ Save LinkedIn profiles while browsing and organise them with shared notes and ta
 
 | Path | What |
 | --- | --- |
-| `extension/` | Chrome MV3 extension: save pill on profile pages, plus a viewer |
+| `extension/` | Chrome MV3 extension: save pill on profile pages, plus a sign-in popup |
 | `web/` | Next.js app deployed to Vercel |
 | `shared/` | Types and tag helpers used by both |
 | `supabase/` | Migrations, RLS policies, behaviour tests |
@@ -69,7 +69,7 @@ Idempotent. The `service_role` key bypasses RLS — run this locally and never p
 ## Use
 
 - On a `linkedin.com/in/...` page, click the pill to save. Revisiting a saved profile refreshes it automatically; notes and tags are never touched, and the pill flashes "Updated ✓" only on a real change.
-- The toolbar icon opens the viewer. The web app is the same archive.
+- The toolbar icon opens a small popup — sign-in only. Browsing, notes and tags all live in the web app; the pill's "Open note" jumps straight there.
 - Notes are an append-only thread. You can edit and delete your own; the database enforces that, not the UI.
 
 ## Develop

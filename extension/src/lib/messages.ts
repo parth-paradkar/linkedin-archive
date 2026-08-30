@@ -1,8 +1,10 @@
-import type { NoteEntry, Profile, ScrapedProfile } from '@archive/shared';
+import type { ScrapedProfile } from '@archive/shared';
 
 /**
- * The content script and the viewer never touch Supabase directly; they ask the
- * service worker, which owns the only client and the only session.
+ * The content script and the popup never touch Supabase directly; they ask the
+ * service worker, which owns the only client and the only session. Browsing,
+ * notes and tags now live in the web app, so the extension only saves and
+ * checks auth.
  */
 export type Msg =
   | { type: 'authState' }
@@ -11,14 +13,7 @@ export type Msg =
   | { type: 'signOut' }
   | { type: 'isSaved'; slug: string }
   | { type: 'saveProfile'; scraped: ScrapedProfile }
-  | { type: 'openViewer'; slug?: string }
-  | { type: 'listProfiles' }
-  | { type: 'getProfile'; slug: string }
-  | { type: 'addNote'; slug: string; body: string }
-  | { type: 'deleteNote'; id: string }
-  | { type: 'addTag'; slug: string; tag: string }
-  | { type: 'removeTag'; slug: string; tag: string }
-  | { type: 'deleteProfile'; slug: string };
+  | { type: 'openProfile'; slug: string };
 
 export type Res = {
   authState: { email: string | null };
@@ -27,14 +22,7 @@ export type Res = {
   signOut: { ok: true };
   isSaved: { saved: boolean; signedIn: boolean };
   saveProfile: { changed: boolean };
-  openViewer: { ok: true };
-  listProfiles: { profiles: Profile[] };
-  getProfile: { profile: Profile | null; notes: NoteEntry[] };
-  addNote: { ok: true };
-  deleteNote: { ok: true };
-  addTag: { tags: string[] };
-  removeTag: { tags: string[] };
-  deleteProfile: { ok: true };
+  openProfile: { ok: true };
 };
 
 /** Rejects if the worker reported an error, so callers can use try/catch. */

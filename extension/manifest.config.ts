@@ -24,7 +24,6 @@ export function buildManifest(supabaseUrl: string): ManifestV3Export {
         run_at: 'document_idle',
       },
     ],
-    action: { default_title: 'Open LinkedIn Archive' },
-    options_ui: { page: 'src/viewer/index.html', open_in_tab: true },
+    action: { default_title: 'LinkedIn Archive', default_popup: 'src/popup/index.html' },
   };
 }

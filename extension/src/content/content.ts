@@ -19,6 +19,8 @@ const STYLE = `
 
 const SAVE_LABEL = 'Save to Archive';
 const SIGNIN_LABEL = 'Sign in to save';
+// ponytail: signed-out click can't open the popup programmatically, so it
+// opens the web app; the user signs in there and via the toolbar popup.
 const SAVED_LABEL = 'Saved ✓ · Open note';
 const UPDATED_LABEL = 'Updated ✓';
 
@@ -60,9 +62,12 @@ async function onClick() {
   const slug = slugFromUrl(location.href);
   if (!slug) return;
 
-  // Signed out, or already saved: both open the viewer rather than saving.
-  if (button?.dataset.state === 'saved' || button?.dataset.state === 'signedout') {
-    await send({ type: 'openViewer', slug });
+  // Already saved -> jump to this profile in the web app.
+  // Signed out  -> open the web app so the user can sign in there and grab an
+  //                extension code from its Connect page.
+  const state = button?.dataset.state;
+  if (state === 'saved' || state === 'signedout') {
+    await send({ type: 'openProfile', slug });
     return;
   }
 

@@ -2,15 +2,11 @@ import type { Msg, Res } from '../lib/messages';
 import { currentEmail, supabase } from '../lib/supabase';
 import * as store from '../lib/storage';
 
-/** Read the viewer path from the manifest rather than guessing the build output. */
-function viewerUrl(slug?: string): string {
-  const page = chrome.runtime.getManifest().options_ui?.page;
-  if (!page) throw new Error('viewer page missing from manifest');
-  return chrome.runtime.getURL(page) + (slug ? `#${encodeURIComponent(slug)}` : '');
-}
+const WEB_URL = import.meta.env.VITE_WEB_URL;
 
-async function openViewer(slug?: string): Promise<void> {
-  await chrome.tabs.create({ url: viewerUrl(slug) });
+/** Open the web app on a specific profile (the sidebar picks up ?profile=). */
+async function openProfile(slug: string): Promise<void> {
+  await chrome.tabs.create({ url: `${WEB_URL}/?profile=${encodeURIComponent(slug)}` });
 }
 
 async function handle(msg: Msg): Promise<Res[Msg['type']]> {
@@ -19,17 +15,18 @@ async function handle(msg: Msg): Promise<Res[Msg['type']]> {
       return { email: await currentEmail() };
 
     case 'signIn': {
-      // No emailRedirectTo: the extension signs in with the code, not the link.
+      // No emailRedirectTo: the extension signs in with the code from the web
+      // app's Connect page, not a link.
       const { error } = await supabase.auth.signInWithOtp({ email: msg.email });
       if (error) throw error;
       return { ok: true };
     }
 
     case 'verifyCode': {
-      // A code from signInWithOtp verifies as 'email'; one minted by the web
-      // app's generateLink verifies as 'magiclink'. Try the common case first.
       const email = msg.email.trim();
       const token = msg.code.trim();
+      // A code from signInWithOtp verifies as 'email'; one minted by the web
+      // app's generateLink verifies as 'magiclink'. Try the common case first.
       let res = await supabase.auth.verifyOtp({ email, token, type: 'email' });
       if (res.error) {
         res = await supabase.auth.verifyOtp({ email, token, type: 'magiclink' });
@@ -51,32 +48,8 @@ async function handle(msg: Msg): Promise<Res[Msg['type']]> {
     case 'saveProfile':
       return { changed: await store.saveScraped(msg.scraped) };
 
-    case 'openViewer':
-      await openViewer(msg.slug);
-      return { ok: true };
-
-    case 'listProfiles':
-      return { profiles: await store.listProfiles() };
-
-    case 'getProfile':
-      return await store.getProfile(msg.slug);
-
-    case 'addNote':
-      await store.addNote(msg.slug, msg.body);
-      return { ok: true };
-
-    case 'deleteNote':
-      await store.deleteNote(msg.id);
-      return { ok: true };
-
-    case 'addTag':
-      return { tags: await store.addTag(msg.slug, msg.tag) };
-
-    case 'removeTag':
-      return { tags: await store.removeTag(msg.slug, msg.tag) };
-
-    case 'deleteProfile':
-      await store.deleteProfile(msg.slug);
+    case 'openProfile':
+      await openProfile(msg.slug);
       return { ok: true };
   }
 }
@@ -86,8 +59,4 @@ chrome.runtime.onMessage.addListener((msg: Msg, _sender, sendResponse) => {
     sendResponse({ error: e instanceof Error ? e.message : String(e) }),
   );
   return true; // keep the channel open for the async response
-});
-
-chrome.action.onClicked.addListener(() => {
-  void openViewer();
 });

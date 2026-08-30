@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>LinkedIn Archive</title>
+    <link rel="stylesheet" href="./popup.css" />
+  </head>
+  <body>
+    <div id="signed-out" hidden>
+      <h1>LinkedIn Archive</h1>
+      <p class="muted">
+        Get a code from the web app (<strong>Connect extension</strong>), then sign in here.
+      </p>
+      <p><a id="web-link" href="#" target="_blank" rel="noreferrer">Open the web app</a></p>
+      <input id="email" type="email" placeholder="you@example.com" autocomplete="email" />
+      <input id="code" type="text" inputmode="numeric" placeholder="6-digit code" />
+      <button id="verify" type="button">Sign in</button>
+      <p id="status" class="status"></p>
+    </div>
+
+    <div id="signed-in" hidden>
+      <p class="muted">Signed in as</p>
+      <p id="who"></p>
+      <p class="muted">
+        Save profiles from the pill on any <code>linkedin.com/in/…</code> page. Browse and take
+        notes in the <a id="web-link-2" href="#" target="_blank" rel="noreferrer">web app</a>.
+      </p>
+      <button id="signout" type="button">Sign out</button>
+    </div>
+
+    <script type="module" src="./popup.ts"></script>
+  </body>
+</html>
