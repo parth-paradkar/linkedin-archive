@@ -1,8 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+import { SUPABASE_ANON_KEY as key, SUPABASE_URL as url } from './env';
 
 /** Server-side Supabase client bound to the request's cookies. */
 export async function createClient() {
